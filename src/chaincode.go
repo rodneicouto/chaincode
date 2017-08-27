@@ -13,11 +13,11 @@ var logger = shim.NewLogger("mylogger")
 type Troca struct {
 	// 1 Arrependimento
 	// 2 Defeituoso
-	MotivoTroca            int32         `json:"motivoTroca"`
+	MotivoTroca            int         `json:"motivoTroca"`
 	// 1 devolucao pagamento
 	// 2 abatimento
 	// 3 por produto
-	OpcaoTroca			   int32		 `json:"opcaoTroca"`
+	OpcaoTroca			   int		 `json:"opcaoTroca"`
 	Data              	   int64         `json:"data"`
 }
 
@@ -26,7 +26,7 @@ type Devolucao struct {
 	// 1 Arrependimento
 	// 2 Defeituoso
 	// 3 Caso Fortuito
-	MotivoDevolucao        int32         `json:"devolvido"`
+	MotivoDevolucao        int         `json:"devolvido"`
 	ComplementoMotivoDevolucao   string  `json:"complementoMotivoDevolucao"`
 	Data              	   int64         `json:"data"`
 }
@@ -73,13 +73,16 @@ func (t *SaleContractChainCode) Invoke(stub shim.ChaincodeStubInterface, functio
 	} 
 	if function == "RegistrarEntrega" {
 		return RegistrarEntrega(stub, args)
+	} 
+	if function == "Arrependimento" {
+		return Arrependimento(stub, args)
 	} else {
 		return nil, errors.New(" Unknow invoke method ")
 	} 
 	return nil, nil
 }
 
-func AtualizarPedido( stub shim.ChaincodeStubInterface, id string, fn func(p *Pedido) ) ([]byte, error){
+func AtualizarPedido( stub shim.ChaincodeStubInterface, id string, fn func(p *Pedido) error ) ([]byte, error){
 	
 	bytes, err := ObterPedido(stub, []string{id});
 	if err != nil {
@@ -94,7 +97,11 @@ func AtualizarPedido( stub shim.ChaincodeStubInterface, id string, fn func(p *Pe
 		return nil, errors.New(" Invalid json format ")
 	}
 
-	fn(&pe)
+	err = fn(&pe)
+	if err != nil {
+		logger.Error("validation error in update function ", err)
+		return nil, err
+	}	
 
 	bytes, err = json.Marshal(&pe)
 	if err != nil {
@@ -114,6 +121,9 @@ func AtualizarPedido( stub shim.ChaincodeStubInterface, id string, fn func(p *Pe
 }
 
 func RegistrarEntrega (stub shim.ChaincodeStubInterface, args []string ) ([]byte, error) {
+	
+	logger.Debug("Entering RegistrarEntrega")
+	
 	if len(args) < 2 {
 		logger.Error("Invalid number of args")
 		return nil, errors.New("Expected atleast two arguments for Registrar Entrega")
@@ -126,10 +136,49 @@ func RegistrarEntrega (stub shim.ChaincodeStubInterface, args []string ) ([]byte
 		return nil, errors.New("Invalid timestamp value")	
 	}
 
-	fn := func(p *Pedido) {		
+	fn := func(p *Pedido) error {		
 		p.DataEntrega = dataEntregaLong
+		return nil
 	}
 
+	return AtualizarPedido(stub, pedidoID, fn)
+}
+
+func Arrependimento( stub shim.ChaincodeStubInterface, args []string )  ([]byte, error) {
+	
+	logger.Debug("Entering Arrependimento")
+	
+	if len(args) < 3 {
+		logger.Error("Invalid number of args")
+		return nil, errors.New("Expected atleast tree arguments for Arrependimento")
+	}
+
+	var pedidoID = args[0]
+	var codigoArrependimento = args[1]
+	var dataDevolucao = args[2]
+	codigoArrependimentoInt, err := strconv.Atoi(codigoArrependimento);
+	if err != nil {
+		logger.Error("Invalid number value")
+		return nil, errors.New("Invalid number value")	
+	}
+	dataDevolucaoLong, err := strconv.ParseInt(dataDevolucao, 10, 64);
+	if err != nil {
+		logger.Error("Invalid timestamp value")
+		return nil, errors.New("Invalid timestamp value")	
+	}
+
+	fn := func(p *Pedido) error {		
+		if p.DataEntrega == 0 {
+			return errors.New("Product that was not delivered can not be returned")
+		}
+		//se for maior que 7 dias a diferenca nao deixa se arrepender
+		if( dataDevolucaoLong - p.DataEntrega > 604800000  ) {
+			logger.Error(codigoArrependimentoInt)
+			return errors.New("Time of regret exceeded")
+		}
+		p.Devolucao.MotivoDevolucao = codigoArrependimentoInt;
+		return nil
+	}
 	return AtualizarPedido(stub, pedidoID, fn)
 }
 
