@@ -1,115 +1,119 @@
-/*
-Copyright IBM Corp 2016 All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-		 http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package main
 
 import (
 	"errors"
 	"fmt"
+	// "encoding/json"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
-// SimpleChaincode example simple Chaincode implementation
-type SimpleChaincode struct {
+var logger = shim.NewLogger("mylogger")
+
+type Troca struct {
+	// 1 Arrependimento
+	// 2 Defeituoso
+	MotivoTroca            int32         `json:"motivoTroca"`
+	// 1 devolucao pagamento
+	// 2 abatimento
+	// 3 por produto
+	OpcaoTroca			   int32		 `json:"opcaoTroca"`
+	Data              	   int64         `json:"data"`
+}
+
+
+type Devolucao struct {
+	// 1 Arrependimento
+	// 2 Defeituoso
+	// 3 Caso Fortuito
+	MotivoDevolucao        int32         `json:"devolvido"`
+	ComplementoMotivoDevolucao   string  `json:"complementoMotivoDevolucao"`
+	Data              	   int64         `json:"data"`
+}
+
+type Pedido struct {
+	ID                     string        `json:"id"`
+	CPFCliente			   string 		 `json:"cpf"`				
+	DescricaoItens         string        `json:"descricaoItens"`
+	ItensId                string        `json:"itensId"`
+	DataVenda              int64         `json:"dataVenda"`
+	DataEntrega            int64         `json:"dataEntrega"`
+	Devolucao              Devolucao     `json:"devolucao"`
+	Troca              	   Troca         `json:"troca"`
+}
+
+//CONTRACT
+type SaleContractChainCode struct {
 }
 
 func main() {
-	err := shim.Start(new(SimpleChaincode))
+	err := shim.Start(new(SaleContractChainCode))
 	if err != nil {
 		fmt.Printf("Error starting Simple chaincode: %s", err)
 	}
 }
 
-// Init resets all the things
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
-	}
-
-	err := stub.PutState("hello_world", []byte(args[0]))
-	if err != nil {
-		return nil, err
-	}
-
+func (t *SaleContractChainCode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("init")
+    return nil, nil
+}
+ 
+func (t *SaleContractChainCode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+    if function == "ObterPedido" {
+		return ObterPedido(stub, args)
+	} else {
+		return nil, errors.New(" Unknow query method ")
+	} 
+	return nil, nil
+}
+ 
+func (t *SaleContractChainCode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+    if function == "RegistrarPedido" {
+		return RegistrarPedido(stub, args)
+	} else {
+		return nil, errors.New(" Unknow invoke method ")
+	} 
 	return nil, nil
 }
 
-// Invoke isur entry point to invoke a chaincode function
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	fmt.Println("invoke is running " + function)
+func RegistrarPedido(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	
+	logger.Debug("Entering RegistrarPedido")
 
-	// Handle different functions
-	if function == "init" {
-		return t.Init(stub, "init", args)
-	} else if function == "write" {
-		return t.write(stub, args)
-	}
-	fmt.Println("invoke did not find func: " + function)
-
-	return nil, errors.New("Received unknown function invocation: " + function)
-}
-
-// Query is our entry point for queries
-func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-	fmt.Println("query is running " + function)
-
-	// Handle different functions
-	if function == "read" { //read a variable
-		return t.read(stub, args)
-	}
-	fmt.Println("query did not find func: " + function)
-
-	return nil, errors.New("Received unknown function query: " + function)
-}
-
-// write - invoke function to write key/value pair
-func (t *SimpleChaincode) write(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var key, value string
-	var err error
-	fmt.Println("running write()")
-
-	if len(args) != 2 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 2. name of the key and value to set")
+	if len(args) < 2 {
+		logger.Error("Invalid number of args")
+		return nil, errors.New("Expected atleast two arguments for loan application creation")
 	}
 
-	key = args[0] //rename for funsies
-	value = args[1]
-	err = stub.PutState(key, []byte(value)) //write the variable into the chaincode state
+	var pedidoID = args[0]
+	var pedidoInput = args[1]
+
+	//TODO validar schema do json
+	//TODO validar permissao para criacao de pedido
+	
+	err := stub.PutState(pedidoID, []byte(pedidoInput))
 	if err != nil {
+		logger.Error("Could not save pedido to ledger", err)
 		return nil, err
 	}
-	return nil, nil
+	logger.Info("Successfully saved Pedido");
+
+	return []byte(pedidoInput), nil
 }
 
-// read - query function to read key/value pair
-func (t *SimpleChaincode) read(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var key, jsonResp string
-	var err error
+func ObterPedido(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	logger.Debug("Entering ObterPedido")
 
-	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting name of the key to query")
-	}
+	if len(args) < 1 {
+		logger.Error("Invalid number of arguments")
+		return nil, errors.New("Missing pedido ID")
+	} 
 
-	key = args[0]
-	valAsbytes, err := stub.GetState(key)
+	var pedidoId = args[0]
+	bytes, err := stub.GetState(pedidoId)
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + key + "\"}"
-		return nil, errors.New(jsonResp)
+		logger.Error("Could not fetch loan application with id "+pedidoId+" from ledger", err)
+		return nil, err
 	}
-
-	return valAsbytes, nil
+	return bytes, nil
 }
