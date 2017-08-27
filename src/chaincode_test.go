@@ -9,7 +9,7 @@ import (
 )
 
 var pedidoID = "la1"
-var pedidoJson = `{"id":"` + pedidoID + `", "cpf": "09596397729", "DescricaoItens": "Maquina Lavar Brastemp; Panela Tramontina", "ItensId": "234;445", "dataVenda": 1503849607000 }`
+var pedidoJson = `{"cpf": "09596397729", "DescricaoItens": "Maquina Lavar Brastemp; Panela Tramontina", "ItensId": "234;445", "dataVenda": 1503849607000 }`
 
 func TestCriarChaincode(t *testing.T) {
 	fmt.Println("Entering TestCreateLoanApplication")
@@ -31,6 +31,22 @@ func TestRegistrarPedidoErro(t *testing.T) {
 
 	stub.MockTransactionStart("t123")
 	_, err := RegistrarPedido(stub, []string{})
+	if err == nil {
+		t.Fatalf("Expected RegistrarPedido to return validation error")
+	}
+	stub.MockTransactionEnd("t123")
+}
+
+func TestRegistrarPedidoErroFormato(t *testing.T) {
+	fmt.Println("Entering TestRegistrarPedidoErro")
+	attributes := make(map[string][]byte)
+	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
+	if stub == nil {
+		t.Fatalf("MockStub creation failed")
+	}
+
+	stub.MockTransactionStart("t123")
+	_, err := RegistrarPedido(stub, []string{pedidoID, " blabla bla "})
 	if err == nil {
 		t.Fatalf("Expected RegistrarPedido to return validation error")
 	}
@@ -66,7 +82,7 @@ func TestRegistrarPedidoSucesso(t *testing.T) {
 	var pedidoTestData Pedido
 	err = json.Unmarshal([]byte(pedidoJson), &pedidoTestData)
 
-	if pe.ID != pedidoTestData.ID {
+	if pe.ID != pedidoID {
 		errors = append(errors, "Pedido ID does not match")
 	}
 	if pe.CPFCliente != pedidoTestData.CPFCliente {

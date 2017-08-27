@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	// "encoding/json"
+	"encoding/json"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
@@ -88,10 +88,25 @@ func RegistrarPedido(stub shim.ChaincodeStubInterface, args []string) ([]byte, e
 	var pedidoID = args[0]
 	var pedidoInput = args[1]
 
+	var pe Pedido
+	err := json.Unmarshal([]byte(pedidoInput), &pe)
+	if err != nil {
+		logger.Error("Invalid format", err)
+		return nil, errors.New(" Invalid json format ")
+	}
+
+	pe.ID = pedidoID
+
+	peBytes, err := json.Marshal(&pe)
+	if err != nil {
+		logger.Error("Could not marshal Pedido", err)
+		return nil, err
+	}
+
 	//TODO validar schema do json
 	//TODO validar permissao para criacao de pedido
 	
-	err := stub.PutState(pedidoID, []byte(pedidoInput))
+	err = stub.PutState(pedidoID, peBytes)
 	if err != nil {
 		logger.Error("Could not save pedido to ledger", err)
 		return nil, err
