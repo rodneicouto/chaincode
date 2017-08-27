@@ -177,6 +177,7 @@ func Arrependimento( stub shim.ChaincodeStubInterface, args []string )  ([]byte,
 			return errors.New("Time of regret exceeded")
 		}
 		p.Devolucao.MotivoDevolucao = codigoArrependimentoInt;
+		p.Devolucao.Data = dataDevolucaoLong;
 		return nil
 	}
 	return AtualizarPedido(stub, pedidoID, fn)
