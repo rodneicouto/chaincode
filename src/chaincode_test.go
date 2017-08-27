@@ -11,6 +11,20 @@ import (
 var pedidoID = "la1"
 var pedidoJson = `{"cpf": "09596397729", "DescricaoItens": "Maquina Lavar Brastemp; Panela Tramontina", "ItensId": "234;445", "dataVenda": 1503849607000 }`
 
+
+func ObterPedidoForTest( t *testing.T, stub shim.ChaincodeStubInterface, id string, p *Pedido){
+	bytes, err := stub.GetState(id)
+	if err != nil {
+		t.Fatalf("Could not fetch pedido with ID " + pedidoID)
+	}
+	err = json.Unmarshal(bytes, &p)
+	if err != nil {
+		t.Fatalf("Could not unmarshal pedido with ID" + pedidoID)
+	}
+}
+
+
+
 func TestCriarChaincode(t *testing.T) {
 	fmt.Println("Entering TestCreateLoanApplication")
 	attributes := make(map[string][]byte)
@@ -100,6 +114,35 @@ func TestInvokePedidoSucesso(t *testing.T) {
 
 }
 
+func TestUpdatePedidoSucesso(t *testing.T) {
+	fmt.Println("Entering TestUpdatePedidoSucesso")
+	attributes := make(map[string][]byte)
+	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
+	if stub == nil {
+		t.Fatalf("MockStub creation failed")
+	}
+
+	_, err := stub.MockInvoke("t123", "RegistrarPedido", []string{pedidoID, pedidoJson})
+	if err != nil {
+		t.Fatalf("Expected RegistrarPedido function to be invoked")
+	}
+	
+	novoCpf := "444";
+	fn := func(p *Pedido) {
+		p.CPFCliente = novoCpf;
+	}
+ 	
+ 	stub.MockTransactionStart("t123")
+	AtualizarPedido(stub, pedidoID, fn)
+  	stub.MockTransactionEnd("t123")
+
+	var pe Pedido
+	ObterPedidoForTest(t, stub, pedidoID, &pe);	
+	if pe.CPFCliente != novoCpf {
+		t.Fatalf("CPF not updated")
+	}
+}
+
 func TestInvokeValidationError(t *testing.T) {
 	fmt.Println("Entering TestInvokeValidation")
 	attributes := make(map[string][]byte)
@@ -151,6 +194,8 @@ func TestQueryErro(t *testing.T) {
 	}
 }
 
+
+
 func TestQuerySucesso(t *testing.T) {
 	fmt.Println("Entering TestQueryErro")
 	attributes := make(map[string][]byte)
@@ -176,5 +221,56 @@ func TestQuerySucesso(t *testing.T) {
 	}
 	if pe.ID != pedidoID {
 		t.Fatalf("Not query successfully: " + pedidoID)
+	}
+}
+
+func TestRegistrarEntregaErro(t * testing.T) {
+	fmt.Println("Entering TestRegistrarEntrega")
+	attributes := make(map[string][]byte)
+	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
+	if stub == nil {
+		t.Fatalf("MockStub creation failed")
+	}
+
+	_, err := stub.MockInvoke("t123", "RegistrarEntrega", []string{pedidoID})
+	if err == nil {
+		t.Fatalf("Expected TestRegistrarEntrega give a error")
+	}
+
+
+}
+
+
+func TestRegistrarEntregaErroData(t * testing.T) {
+	fmt.Println("Entering TestRegistrarEntregaErroData")
+	attributes := make(map[string][]byte)
+	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
+	if stub == nil {
+		t.Fatalf("MockStub creation failed")
+	}
+	_, err := stub.MockInvoke("t123", "RegistrarPedido", []string{pedidoID, pedidoJson})
+
+	_, err = stub.MockInvoke("t123", "RegistrarEntrega", []string{pedidoID, "eeeeeee"})
+	if err == nil {
+		t.Fatalf("Expected TestRegistrarEntrega give a error")
+	}	
+}
+
+func TestRegistrarEntregaErroSucesso(t * testing.T) {
+	fmt.Println("Entering TestRegistrarEntregaErroSucesso")
+	attributes := make(map[string][]byte)
+	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
+	if stub == nil {
+		t.Fatalf("MockStub creation failed")
+	}
+	
+	stub.MockInvoke("t123", "RegistrarPedido", []string{pedidoID, pedidoJson})
+
+	stub.MockInvoke("t123", "RegistrarEntrega", []string{pedidoID, "654"})
+	
+	var pe Pedido
+	ObterPedidoForTest(t, stub, pedidoID, &pe);
+	if pe.DataEntrega != 654 {
+		t.Fatalf("Data Entrega not updated")
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"encoding/json"
-
+	"strconv"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
 
@@ -70,10 +70,67 @@ func (t *SaleContractChainCode) Query(stub shim.ChaincodeStubInterface, function
 func (t *SaleContractChainCode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
     if function == "RegistrarPedido" {
 		return RegistrarPedido(stub, args)
+	} 
+	if function == "RegistrarEntrega" {
+		return RegistrarEntrega(stub, args)
 	} else {
 		return nil, errors.New(" Unknow invoke method ")
 	} 
 	return nil, nil
+}
+
+func AtualizarPedido( stub shim.ChaincodeStubInterface, id string, fn func(p *Pedido) ) ([]byte, error){
+	
+	bytes, err := ObterPedido(stub, []string{id});
+	if err != nil {
+		logger.Error("Invalid format " + id, err)
+		return nil, err
+	}
+
+	var pe Pedido
+	err = json.Unmarshal(bytes, &pe)
+	if err != nil {
+		logger.Error("Invalid format atualizar unmarshal " + string(bytes[:]), err)
+		return nil, errors.New(" Invalid json format ")
+	}
+
+	fn(&pe)
+
+	bytes, err = json.Marshal(&pe)
+	if err != nil {
+		logger.Error("Could not marshal Pedido: update", err)
+		return nil, err
+	}
+	
+	err = stub.PutState(id, bytes)
+	if err != nil {
+		logger.Error("Could not update pedido to ledger", err)
+		return nil, err
+	}
+	logger.Info("Successfully updated Pedido");
+
+	return bytes, nil
+
+}
+
+func RegistrarEntrega (stub shim.ChaincodeStubInterface, args []string ) ([]byte, error) {
+	if len(args) < 2 {
+		logger.Error("Invalid number of args")
+		return nil, errors.New("Expected atleast two arguments for Registrar Entrega")
+	}
+	var pedidoID = args[0]
+	var dataEntrega = args[1]
+	dataEntregaLong, err := strconv.ParseInt(dataEntrega, 10, 64);
+	if err != nil {
+		logger.Error("Invalid timestamp value")
+		return nil, errors.New("Invalid timestamp value")	
+	}
+
+	fn := func(p *Pedido) {		
+		p.DataEntrega = dataEntregaLong
+	}
+
+	return AtualizarPedido(stub, pedidoID, fn)
 }
 
 func RegistrarPedido(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
