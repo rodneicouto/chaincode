@@ -53,7 +53,7 @@ func TestRegistrarPedidoErroFormato(t *testing.T) {
 	stub.MockTransactionEnd("t123")
 }
 
-func TestRegistrarPedidoSucesso(t *testing.T) {
+func TestInvokePedidoSucesso(t *testing.T) {
 	fmt.Println("Entering TestRegistrarPedidoSucesso")
 	attributes := make(map[string][]byte)
 	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
@@ -61,15 +61,13 @@ func TestRegistrarPedidoSucesso(t *testing.T) {
 		t.Fatalf("MockStub creation failed")
 	}
 
-	stub.MockTransactionStart("t123")
-	_, err := RegistrarPedido(stub, []string{pedidoID, pedidoJson})
+	bytes, err := stub.MockInvoke("t123", "RegistrarPedido", []string{pedidoID, pedidoJson})
 	if err != nil {
-		t.Fatalf("Expected TestRegistrarPedidoSucesso to succeed")
+		t.Fatalf("Expected RegistrarPedido function to be invoked")
 	}
-	stub.MockTransactionEnd("t123")
 
 	var pe Pedido
-	bytes, err := stub.GetState(pedidoID)
+	bytes, err = stub.GetState(pedidoID)
 	if err != nil {
 		t.Fatalf("Could not fetch pedido with ID " + pedidoID)
 	}
