@@ -74,8 +74,8 @@ func (t *SaleContractChainCode) Invoke(stub shim.ChaincodeStubInterface, functio
 	if function == "RegistrarEntrega" {
 		return RegistrarEntrega(stub, args)
 	} 
-	if function == "Arrependimento" {
-		return Arrependimento(stub, args)
+	if function == "RegistrarArrependimento" {
+		return RegistrarArrependimento(stub, args)
 	} else {
 		return nil, errors.New(" Unknow invoke method ")
 	} 
@@ -144,23 +144,17 @@ func RegistrarEntrega (stub shim.ChaincodeStubInterface, args []string ) ([]byte
 	return AtualizarPedido(stub, pedidoID, fn)
 }
 
-func Arrependimento( stub shim.ChaincodeStubInterface, args []string )  ([]byte, error) {
+func RegistrarArrependimento( stub shim.ChaincodeStubInterface, args []string )  ([]byte, error) {
 	
 	logger.Debug("Entering Arrependimento")
 	
-	if len(args) < 3 {
+	if len(args) < 2 {
 		logger.Error("Invalid number of args")
-		return nil, errors.New("Expected atleast tree arguments for Arrependimento")
+		return nil, errors.New("Expected atleast two arguments for Arrependimento")
 	}
 
 	var pedidoID = args[0]
-	var codigoArrependimento = args[1]
-	var dataDevolucao = args[2]
-	codigoArrependimentoInt, err := strconv.Atoi(codigoArrependimento);
-	if err != nil {
-		logger.Error("Invalid number value")
-		return nil, errors.New("Invalid number value")	
-	}
+	var dataDevolucao = args[1]
 	dataDevolucaoLong, err := strconv.ParseInt(dataDevolucao, 10, 64);
 	if err != nil {
 		logger.Error("Invalid timestamp value")
@@ -173,10 +167,9 @@ func Arrependimento( stub shim.ChaincodeStubInterface, args []string )  ([]byte,
 		}
 		//se for maior que 7 dias a diferenca nao deixa se arrepender
 		if( dataDevolucaoLong - p.DataEntrega > 604800000  ) {
-			logger.Error(codigoArrependimentoInt)
 			return errors.New("Time of regret exceeded")
 		}
-		p.Devolucao.MotivoDevolucao = codigoArrependimentoInt;
+		p.Devolucao.MotivoDevolucao = 1;
 		p.Devolucao.Data = dataDevolucaoLong;
 		return nil
 	}

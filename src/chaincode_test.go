@@ -294,7 +294,7 @@ func TestArrependimentoSemRegistroEntrega(t * testing.T) {
 	stub := shim.NewCustomMockStub("mockStub", new(SaleContractChainCode), attributes)
 
 	stub.MockInvoke("t123", "RegistrarPedido", []string{pedidoID, pedidoJson})
-	_, err := stub.MockInvoke("t123", "Arrependimento", []string{pedidoID, "1", "1503849607000"})
+	_, err := stub.MockInvoke("t123", "RegistrarArrependimento", []string{pedidoID, "1503849607000"})
 	if err == nil {
 		t.Fatalf("Expected not delivery error ")
 	}
@@ -310,7 +310,7 @@ func TestArrependimentoErroDataDepois7Dias(t * testing.T) {
 
 	stub.MockInvoke("t123", "RegistrarEntrega", []string{pedidoID, "1472313607000"})
 
-	_, err := stub.MockInvoke("t123", "Arrependimento", []string{pedidoID, "1", "1503849607000"})
+	_, err := stub.MockInvoke("t123", "RegistrarArrependimento", []string{pedidoID, "1503849607000"})
 	if err == nil {
 		t.Fatalf("Expected error ")
 	}
@@ -325,7 +325,7 @@ func TestArrependimentoSuccess(t * testing.T) {
 
 	stub.MockInvoke("t123", "RegistrarEntrega", []string{pedidoID, "1472313607000"})
 
-	_, err := stub.MockInvoke("t123", "Arrependimento", []string{pedidoID, "1", "1472313609000"})
+	_, err := stub.MockInvoke("t123", "RegistrarArrependimento", []string{pedidoID, "1472313609000"})
 	if err != nil {
 		t.Fatalf("Not expected error ")
 	}
